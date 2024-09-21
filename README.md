@@ -140,7 +140,31 @@ callPackage (mkGenericPkg {
 }) args
 ```
 
-New generic.nix: TODO: link
+New generic.nix:
+```nix
+# pkgs/openssl/generic.nix
+{ version
+, hash
+, packageOlder
+, packageAtLeast
+, packageBetween
+, mkVersionPassthru
+, ...
+}:
+
+# Former packaging arguments:
+{ lib
+, stdenv
+...
+}@args:
+
+stdenv.mkDerivation {
+  ...
+  passthru = (mkVersionPassthru args ) // {
+    ... # existing args
+  };
+}
+```
 
 Usage of openssl from top-level:
 ````
@@ -162,7 +186,7 @@ nix-build -A openssl.versions
 
 - Argument passing is ugly
   - This is caused by us trying to satisfy mkGenericpkg and the package's arguments with the same arguments
-  - This could be improved by importing default.nix with just mkGenericPkg, and passing the partially appliced mkGenericPkg function to callPackage
+  - This could be improved by importing default.nix with just mkGenericPkg, and passing the partially applied mkGenericPkg function to callPackage
     - E.g. `openssl = callPackage (import ./pkgs/openssl { inherit mkGenericpkg; }) { }; 
     - Similar to auto call-by-name, we could also create another directory which would just auto call generic packages, TBD in another proposal.
 
@@ -179,6 +203,8 @@ mkGenericPkg {
 }
 ```
 
+- Instead of `passthru.versions`, should it be `passthru.variants`?
+  - Although I use openssl's version as a parameter, build arguments could also be passed in versions.nix. E.g. `withDocs`
 - Should you be able to recurse versions? E.g. `openssl.v3_2.v3_1` (returns v3.1)
 - Add `.overrideVersion`?
   - Unsure if having yet-another way to `.overrideX` is worth it
