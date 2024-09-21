@@ -24,6 +24,8 @@ Expose `mkGenericPkg` which allows for constructing this version scheme in an un
 version information is passed as one set of arguments before passing the nix expression
 to callPackage.
 
+Example PR: https://github.com/jonringer/core-pkgs/pull/5
+
 ```nix
 {
   ... 
