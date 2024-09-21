@@ -167,7 +167,7 @@ stdenv.mkDerivation {
 ```
 
 Usage of openssl from top-level:
-````
+```
 nix-repl> openssl     
 «derivation /nix/store/ayvv16slswqfps7c1zql8rml5nla6zky-openssl-3.3.1.drv»
 
