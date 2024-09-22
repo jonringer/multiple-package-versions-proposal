@@ -1,5 +1,5 @@
 ---
-Title: Allow for many versions to be exposed by a package
+Title: Allow for many variants to be exposed by a package
 Author: jonringer
 Discussions-To: 
 Status: Draft
@@ -10,7 +10,7 @@ Created: 2024-9-19
 
 # Summary
 
-Generally multiple versions are introduced by adding a suffix to similar package
+Generally multiple versions or variants are introduced by adding a suffix to similar package
 (e.g. `ffmpeg_4`), and generally a default is exposed for the prefered package
 version to be used across the package set. However, this is less than ideal
 as you pollute a package scope with multiple variants which are treated as
@@ -19,7 +19,7 @@ and it is unintuitive to users how packages expose these versions (e.g. `ffmpeg_
 
 ## Detailed Implementation
 
-Expose `mkPolyPkg` which allows for constructing this version scheme in an uniform style.
+Expose `mkPolyPkg` which allows for constructing this variant scheme in an uniform style.
 `mkPolyPkg` in this fashion can be thought of as a partially applied function, where
 version information is passed as one set of arguments before passing the nix expression
 to callPackage.
@@ -44,11 +44,11 @@ Example PR: https://github.com/jonringer/core-pkgs/pull/5
 # Intended to be an attrset of { "<exposed version>" = { version = "<full version>"; src = <path>; } }
 # or a file containing such version information
 # Type: AttrSet AttrSet
-versions,
+variants,
 
-# Similar to versions, but instead contain deprecation and removal messages
+# Similar to variants arg, but instead contain deprecation and removal messages
 # Only added when `config.allowAliases` is true
-# This is passed the versions attr set to allow for directly referencing the version entries
+# This is passed the variants attr set to allow for directly referencing the version entries
 # Type: AttrSet AttrSet -> AttrSet AttrSet.
 aliases ? { ... }: { },
 
@@ -65,15 +65,15 @@ genericBuilder,
 assert builtins.isFunction defaultSelector;
 
 let
-  versionsRaw = if builtins.isPath versions then import versions else versions;
+  variantsRaw = if builtins.isPath variants then import variants else variants;
   aliasesExpr = if builtins.isPath aliases then import aliases else aliases;
   genericExpr = if builtins.isPath genericBuilder then import genericBuilder else genericBuilder;
 
-  aliases' = aliasesExpr { inherit lib; versions = versionsRaw; };
-  versions' = if config.allowAliases then
-      # Not sure if aliases or versions should have priority
-      versionsRaw // aliases'
-    else versionsRaw;
+  aliases' = aliasesExpr { inherit lib; variants = variantsRaw; };
+  variants' = if config.allowAliases then
+      # Not sure if aliases or variants should have priority
+      variantsRaw // aliases'
+    else variantsRaw;
 
   # This also allows for additional attrs to be passed through besides version and src
   mkVersionArgs = { version, ... }@args: args // rec {
@@ -82,8 +82,8 @@ let
     packageAtLeast = lib.versionAtLeast version;
     packageBetween = lower: higher: packageAtLeast lower && packageOlder higher;
     mkVersionPassthru = packageArgs: let
-      versions = builtins.mapAttrs (_: v: mkPackage v packageArgs) versions';
-    in versions // { inherit versions; };
+      variants = builtins.mapAttrs (_: v: mkPackage v packageArgs) variants';
+    in variants // { inherit variants; };
   };
 
   # Re-call the generic builder with new version args, re-wrap with makeOverridable
@@ -92,7 +92,7 @@ let
 in
   # The partially applied function doesn't need to be called with makeOverridable
   # As callPackage will be wrapping this in makeOverridable as well
-  genericExpr (mkVersionArgs (defaultSelector versions'))
+  genericExpr (mkVersionArgs (defaultSelector variants'))
 ```
 
 ## Openssl example
@@ -116,7 +116,7 @@ in
 ```
 
 ```nix
-# pkgs/openssl/versions.nix
+# pkgs/openssl/variants.nix
 {
   v1_1 = {
     version = "1.1.1w";
@@ -135,7 +135,7 @@ in
 
 # TODO: future proposal, make this less ugly
 callPackage (mkPolyPkg {
-  versions = ./versions.nix;
+  variants = ./variants.nix;
   aliases = ./aliases.nix;
   defaultSelector = (p: p.v3_3);
   genericBuilder = ./generic.nix;
@@ -180,8 +180,8 @@ nix-repl> openssl.v3_2
 nix-repl> openssl.v3_2.override { withDocs = false; }
 «derivation /nix/store/2196b3bj4vk2p6i7f3ai3p0n1m5im5iz-openssl-3.2.2.drv»
 
-# To build all versions, need to pass `allowAliases = false;` to avoid eval error
-nix-build -A openssl.versions
+# To build all variants, need to pass `allowAliases = false;` to avoid eval error
+nix-build -A openssl.variants
 ```
 
 ## Unresolved issues
@@ -198,16 +198,14 @@ nix-build -A openssl.versions
 { mkPolyPkg }:
 
 mkPolyPkg {
-  versions = ./versions.nix;
+  variants = ./variants.nix;
   aliases = ./aliases.nix;
   defaultSelector = (p: p.v3_3);
   genericBuilder = ./generic.nix;
 }
 ```
 
-- Instead of `passthru.versions`, should it be `passthru.variants`?
-  - Although I use openssl's version as a parameter, build arguments could also be passed in versions.nix. E.g. `withDocs`
-- Should you be able to recurse versions? E.g. `openssl.v3_2.v3_1` (returns v3.1)
+- Should you be able to recurse variants? E.g. `openssl.v3_2.v3_1` (returns v3.1)
 - Add `.overrideVersion`?
   - Unsure if having yet-another way to `.overrideX` is worth it
   - In most cases, this should be the same as doing `drv.overrideAttrs { version = ...; src = ...; }`
