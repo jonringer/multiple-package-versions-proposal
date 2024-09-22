@@ -19,8 +19,8 @@ and it is unintuitive to users how packages expose these versions (e.g. `ffmpeg_
 
 ## Detailed Implementation
 
-Expose `mkGenericPkg` which allows for constructing this version scheme in an uniform style.
-`mkGenericPkg` in this fashion can be thought of as a partially applied function, where
+Expose `mkPolyPkg` which allows for constructing this version scheme in an uniform style.
+`mkPolyPkg` in this fashion can be thought of as a partially applied function, where
 version information is passed as one set of arguments before passing the nix expression
 to callPackage.
 
@@ -30,7 +30,7 @@ Example PR: https://github.com/jonringer/core-pkgs/pull/5
 {
   ... 
   # top-level.nix
-  mkGenericPkg = callPackage ./build-support/mkgeneric { };
+  mkPolyPkg = callPackage ./build-support/mkgeneric { };
   ... 
 }
 ```
@@ -129,12 +129,12 @@ in
 ```nix
 # pkgs/openssl/default.nix
 { callPackage
-, mkGenericPkg
+, mkPolyPkg
 , ...
 }@args:
 
 # TODO: future proposal, make this less ugly
-callPackage (mkGenericPkg {
+callPackage (mkPolyPkg {
   versions = ./versions.nix;
   aliases = ./aliases.nix;
   defaultSelector = (p: p.v3_3);
@@ -187,17 +187,17 @@ nix-build -A openssl.versions
 ## Unresolved issues
 
 - Argument passing is ugly
-  - This is caused by us trying to satisfy mkGenericpkg and the package's arguments with the same arguments
-  - This could be improved by importing default.nix with just mkGenericPkg, and passing the partially applied mkGenericPkg function to callPackage
-    - E.g. `openssl = callPackage (import ./pkgs/openssl { inherit mkGenericpkg; }) { }; 
+  - This is caused by us trying to satisfy mkPolyPkg and the package's arguments with the same arguments
+  - This could be improved by importing default.nix with just mkPolyPkg, and passing the partially applied mkPolyPkg function to callPackage
+    - E.g. `openssl = callPackage (import ./pkgs/openssl { inherit mkPolyPkg; }) { }; 
     - Similar to auto call-by-name, we could also create another directory which would just auto call generic packages, TBD in another proposal.
 
 ```nix
 # pkgs/openssl/default.nix, with the result of this partially applied function
 # being passed to callPackage
-{ mkGenericPkg }:
+{ mkPolyPkg }:
 
-mkGenericPkg {
+mkPolyPkg {
   versions = ./versions.nix;
   aliases = ./aliases.nix;
   defaultSelector = (p: p.v3_3);
