@@ -189,7 +189,7 @@ nix-build -A openssl.variants
 - Argument passing is ugly
   - This is caused by us trying to satisfy mkPolyPkg and the package's arguments with the same arguments
   - This could be improved by importing default.nix with just mkPolyPkg, and passing the partially applied mkPolyPkg function to callPackage
-    - E.g. `openssl = callPackage (import ./pkgs/openssl { inherit mkPolyPkg; }) { }; 
+    - E.g. `openssl = callPackage (import ./pkgs/openssl { inherit mkPolyPkg; }) { };` 
     - Similar to auto call-by-name, we could also create another directory which would just auto call generic packages, TBD in another proposal.
 
 ```nix
